@@ -10,16 +10,15 @@ module.exports = async function handler(req, res) {
   if (!apiKey) { res.status(500).json({ error: "API key not configured" }); return; }
 
   try {
-    let body = req.body;
+    let body = req.body || {};
     if (typeof body === "string") body = JSON.parse(body);
 
-    // Convert Anthropic format to Gemini format
     const systemPrompt = body.system || "";
-    const userMessage = body.messages?.[0]?.content || "";
+    const userMessage = (body.messages && body.messages[0] && body.messages[0].content) ? body.messages[0].content : "";
     const fullPrompt = systemPrompt + "\n\nUsuario: " + userMessage;
 
-    const response = await fetch(
-      `https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=${apiKey}`,
+    const geminiRes = await fetch(
+      "https://generativelanguage.googleapis.com/v1beta/models/gemini-2.0-flash:generateContent?key=" + apiKey,
       {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -30,13 +29,21 @@ module.exports = async function handler(req, res) {
       }
     );
 
-    const data = await response.json();
-    const text = data.candidates?.[0]?.content?.parts?.[0]?.text || "";
+    if (!geminiRes.ok) {
+      const errText = await geminiRes.text();
+      res.status(500).json({ error: "Gemini error: " + errText });
+      return;
+    }
 
-    // Return in Anthropic-compatible format
-    res.status(200).json({
-      content: [{ type: "text", text: text }]
-    });
+    const geminiData = await geminiRes.json();
+    const text = (geminiData.candidates &&
+                  geminiData.candidates[0] &&
+                  geminiData.candidates[0].content &&
+                  geminiData.candidates[0].content.parts &&
+                  geminiData.candidates[0].content.parts[0] &&
+                  geminiData.candidates[0].content.parts[0].text) ? geminiData.candidates[0].content.parts[0].text : "";
+
+    res.status(200).json({ content: [{ type: "text", text: text }] });
 
   } catch (e) {
     res.status(500).json({ error: e.message });
