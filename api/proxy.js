@@ -25,7 +25,7 @@ module.exports = async function handler(req, res) {
         "X-Title": "Tesoreros SG"
       },
       body: JSON.stringify({
-        model: "meta-llama/llama-3.3-70b-instruct:free",
+        model: "openrouter/auto",
         messages: [
           { role: "system", content: systemPrompt },
           { role: "user", content: userMessage }
